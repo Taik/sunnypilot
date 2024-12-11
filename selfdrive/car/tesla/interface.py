@@ -46,18 +46,33 @@ class CarInterface(CarInterfaceBase):
   def _update(self, c):
     ret = self.CS.update(self.cp, self.cp_cam, self.cp_adas)
 
-    if self.enable_mads:
+    # Initialize MADS state from cruise main state
+    self.CS.mads_enabled = self.get_sp_cruise_main_state(ret, self.CS)
+    self.CS.accEnabled = ret.cruiseState.enabled  # ACC state is controlled by the car itself
+
+    # MADS state management
+    if not ret.cruiseState.available:
+      self.CS.madsEnabled = False
+    elif self.enable_mads:
+      # Initial MADS activation
+      if not self.CS.prev_mads_enabled and self.CS.mads_enabled:
+        self.CS.madsEnabled = True
+
+      # MADS toggle button handling
       for b in self.CS.button_events:
         if b.type == ButtonType.altButton2 and not b.pressed:
           self.CS.madsEnabled = not self.CS.madsEnabled
+
+      # Update MADS state based on conditions
       self.CS.madsEnabled = self.get_acc_mads(ret.cruiseState.enabled, self.CS.accEnabled, self.CS.madsEnabled)
       self.CS.madsEnabled = False if self.CS.steering_override else self.CS.madsEnabled
 
-    self.CS.accEnabled = ret.cruiseState.enabled  # ACC state is controlled by the car itself
-
+    # Handle cruise cancellation
     if not self.CP.pcmCruise or (self.CP.pcmCruise and self.CP.minEnableSpeed > 0) or not self.CP.pcmCruiseSpeed:
       if any(b.type == ButtonType.cancel for b in self.CS.button_events):
         self.CS.madsEnabled, self.CS.accEnabled = self.get_sp_cancel_cruise_state(self.CS.madsEnabled)
+
+    # Handle pedal disengage
     if self.get_sp_pedal_disengage(ret):
       self.CS.madsEnabled, self.CS.accEnabled = self.get_sp_cancel_cruise_state(self.CS.madsEnabled)
       ret.cruiseState.enabled = ret.cruiseState.enabled if not self.enable_mads else False if self.CP.pcmCruise else self.CS.accEnabled
