@@ -59,13 +59,16 @@ class CarInterface(CarInterfaceBase):
         self.CS.madsEnabled = True
 
       # MADS toggle button handling
+      user_toggled_mads = False
       for b in self.CS.button_events:
         if b.type == ButtonType.altButton2 and not b.pressed:
           self.CS.madsEnabled = not self.CS.madsEnabled
+          user_toggled_mads = True
 
       # Update MADS state based on conditions
-      self.CS.madsEnabled = self.get_acc_mads(ret.cruiseState.enabled, self.CS.accEnabled, self.CS.madsEnabled)
-      self.CS.madsEnabled = False if self.CS.steering_override else self.CS.madsEnabled
+      if not user_toggled_mads:
+        self.CS.madsEnabled = self.get_acc_mads(ret.cruiseState.enabled, self.CS.accEnabled, self.CS.madsEnabled)
+      self.CS.madsEnabled = False if self.CS.steering_override else self.CS.madsEnabled  # Steering override always takes precedence
 
     # Handle cruise cancellation
     if not self.CP.pcmCruise or (self.CP.pcmCruise and self.CP.minEnableSpeed > 0) or not self.CP.pcmCruiseSpeed:
