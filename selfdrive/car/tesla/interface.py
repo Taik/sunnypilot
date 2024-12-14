@@ -46,18 +46,7 @@ class CarInterface(CarInterfaceBase):
   def _update(self, c):
     ret = self.CS.update(self.cp, self.cp_cam, self.cp_adas)
 
-    # Initialize MADS state from cruise main state
-    self.CS.mads_enabled = self.get_sp_cruise_main_state(ret, self.CS)
-    self.CS.accEnabled = ret.cruiseState.enabled  # ACC state is controlled by the car itself
-
-    # MADS state management
-    if not ret.cruiseState.available:
-      self.CS.madsEnabled = False
-    elif self.enable_mads:
-      # Initial MADS activation
-      if not self.CS.prev_mads_enabled and self.CS.mads_enabled:
-        self.CS.madsEnabled = True
-
+    if self.enable_mads:
       # MADS toggle button handling
       user_toggled_mads = False
       for b in self.CS.button_events:
@@ -69,6 +58,8 @@ class CarInterface(CarInterfaceBase):
       if not user_toggled_mads:
         self.CS.madsEnabled = self.get_acc_mads(ret.cruiseState.enabled, self.CS.accEnabled, self.CS.madsEnabled)
       self.CS.madsEnabled = False if self.CS.steering_override else self.CS.madsEnabled  # Steering override always takes precedence
+
+    self.CS.accEnabled = ret.cruiseState.enabled # ACC state is controlled by the car itself
 
     # Handle cruise cancellation
     if not self.CP.pcmCruise or (self.CP.pcmCruise and self.CP.minEnableSpeed > 0) or not self.CP.pcmCruiseSpeed:
